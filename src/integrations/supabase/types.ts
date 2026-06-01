@@ -14,46 +14,150 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          detail: Json
+          event_type: string
+          id: string
+          latency_ms: number
+          mode: Database["public"]["Enums"]["ai_mode"]
+          model: string | null
+          organization_id: string | null
+          status: string
+          tokens_estimated: number
+          tool_names: string[]
+          user_id: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          detail?: Json
+          event_type: string
+          id?: string
+          latency_ms?: number
+          mode?: Database["public"]["Enums"]["ai_mode"]
+          model?: string | null
+          organization_id?: string | null
+          status?: string
+          tokens_estimated?: number
+          tool_names?: string[]
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          detail?: Json
+          event_type?: string
+          id?: string
+          latency_ms?: number
+          mode?: Database["public"]["Enums"]["ai_mode"]
+          model?: string | null
+          organization_id?: string | null
+          status?: string
+          tokens_estimated?: number
+          tool_names?: string[]
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          detail: Json
+          event_type: string
+          id: string
+          ip_address: unknown
+          organization_id: string | null
+          status: string
+          target_id: string | null
+          target_table: string | null
+          user_agent: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          event_type: string
+          id?: string
+          ip_address?: unknown
+          organization_id?: string | null
+          status?: string
+          target_id?: string | null
+          target_table?: string | null
+          user_agent?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          event_type?: string
+          id?: string
+          ip_address?: unknown
+          organization_id?: string | null
+          status?: string
+          target_id?: string | null
+          target_table?: string | null
+          user_agent?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           created_at: string
           id: string
           metadata: Json
           mode: Database["public"]["Enums"]["ai_mode"]
-          organization_id: string | null
+          organization_id: string
           summary: string | null
           title: string
           updated_at: string
           user_id: string
-          workspace_id: string | null
+          workspace_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           metadata?: Json
           mode?: Database["public"]["Enums"]["ai_mode"]
-          organization_id?: string | null
+          organization_id: string
           summary?: string | null
           title?: string
           updated_at?: string
           user_id: string
-          workspace_id?: string | null
+          workspace_id: string
         }
         Update: {
           created_at?: string
           id?: string
           metadata?: Json
           mode?: Database["public"]["Enums"]["ai_mode"]
-          organization_id?: string | null
+          organization_id?: string
           summary?: string | null
           title?: string
           updated_at?: string
           user_id?: string
-          workspace_id?: string | null
+          workspace_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "conversations_workspace_org_fk"
+            foreignKeyName: "conversations_workspace_id_organization_id_fkey"
             columns: ["workspace_id", "organization_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -63,45 +167,87 @@ export type Database = {
       }
       memories: {
         Row: {
+          archived: boolean
           category: string
           confidence: number
           content: string
           created_at: string
+          embedding: string | null
           frequency: number
           id: string
+          importance: number
+          kind: string
           last_used_at: string
+          metadata: Json
+          organization_id: string
           pinned: boolean
+          source_message_id: string | null
+          tags: string[]
           updated_at: string
           usefulness: number
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
+          archived?: boolean
           category?: string
           confidence?: number
           content: string
           created_at?: string
+          embedding?: string | null
           frequency?: number
           id?: string
+          importance?: number
+          kind?: string
           last_used_at?: string
+          metadata?: Json
+          organization_id: string
           pinned?: boolean
+          source_message_id?: string | null
+          tags?: string[]
           updated_at?: string
           usefulness?: number
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
+          archived?: boolean
           category?: string
           confidence?: number
           content?: string
           created_at?: string
+          embedding?: string | null
           frequency?: number
           id?: string
+          importance?: number
+          kind?: string
           last_used_at?: string
+          metadata?: Json
+          organization_id?: string
           pinned?: boolean
+          source_message_id?: string | null
+          tags?: string[]
           updated_at?: string
           usefulness?: number
           user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "memories_source_message_id_fkey"
+            columns: ["source_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memories_workspace_id_organization_id_fkey"
+            columns: ["workspace_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
       }
       memory_feedback: {
         Row: {
@@ -139,6 +285,63 @@ export type Database = {
         }
         Relationships: []
       }
+      message_citations: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          metadata: Json
+          organization_id: string
+          snippet: string | null
+          source_type: string
+          title: string | null
+          upload_id: string | null
+          url: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          metadata?: Json
+          organization_id: string
+          snippet?: string | null
+          source_type: string
+          title?: string | null
+          upload_id?: string | null
+          url?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          metadata?: Json
+          organization_id?: string
+          snippet?: string | null
+          source_type?: string
+          title?: string | null
+          upload_id?: string | null
+          url?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_citations_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_citations_workspace_id_organization_id_fkey"
+            columns: ["workspace_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -148,13 +351,13 @@ export type Database = {
           is_final_response: boolean
           metadata: Json
           model: string | null
-          organization_id: string | null
+          organization_id: string
           role: Database["public"]["Enums"]["message_role"]
           token_estimate: number
           tool_names: string[]
           upload_ids: string[]
-          user_id: string
-          workspace_id: string | null
+          user_id: string | null
+          workspace_id: string
         }
         Insert: {
           content: string
@@ -164,13 +367,13 @@ export type Database = {
           is_final_response?: boolean
           metadata?: Json
           model?: string | null
-          organization_id?: string | null
+          organization_id: string
           role: Database["public"]["Enums"]["message_role"]
           token_estimate?: number
           tool_names?: string[]
           upload_ids?: string[]
-          user_id: string
-          workspace_id?: string | null
+          user_id?: string | null
+          workspace_id: string
         }
         Update: {
           content?: string
@@ -180,13 +383,13 @@ export type Database = {
           is_final_response?: boolean
           metadata?: Json
           model?: string | null
-          organization_id?: string | null
+          organization_id?: string
           role?: Database["public"]["Enums"]["message_role"]
           token_estimate?: number
           tool_names?: string[]
           upload_ids?: string[]
-          user_id?: string
-          workspace_id?: string | null
+          user_id?: string | null
+          workspace_id?: string
         }
         Relationships: [
           {
@@ -197,7 +400,7 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "messages_workspace_org_fk"
+            foreignKeyName: "messages_workspace_id_organization_id_fkey"
             columns: ["workspace_id", "organization_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -283,11 +486,13 @@ export type Database = {
           default_organization_id: string | null
           default_workspace_id: string | null
           display_name: string | null
-          email: string | null
+          email: string
+          full_name: string | null
           id: string
+          role: Database["public"]["Enums"]["profile_role"]
           settings: Json
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -295,11 +500,13 @@ export type Database = {
           default_organization_id?: string | null
           default_workspace_id?: string | null
           display_name?: string | null
-          email?: string | null
-          id?: string
+          email: string
+          full_name?: string | null
+          id: string
+          role?: Database["public"]["Enums"]["profile_role"]
           settings?: Json
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -307,11 +514,13 @@ export type Database = {
           default_organization_id?: string | null
           default_workspace_id?: string | null
           display_name?: string | null
-          email?: string | null
+          email?: string
+          full_name?: string | null
           id?: string
+          role?: Database["public"]["Enums"]["profile_role"]
           settings?: Json
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -405,41 +614,194 @@ export type Database = {
         }
         Relationships: []
       }
-      uploads: {
+      settings: {
         Row: {
           created_at: string
-          extracted_text: string | null
-          file_name: string
-          file_size: number
+          created_by: string | null
           id: string
-          mime_type: string | null
-          status: Database["public"]["Enums"]["upload_status"]
-          storage_path: string
-          user_id: string
+          key: string
+          organization_id: string | null
+          scope: Database["public"]["Enums"]["setting_scope"]
+          updated_at: string
+          user_id: string | null
+          value: Json
+          workspace_id: string | null
         }
         Insert: {
           created_at?: string
-          extracted_text?: string | null
-          file_name: string
-          file_size?: number
+          created_by?: string | null
           id?: string
-          mime_type?: string | null
-          status?: Database["public"]["Enums"]["upload_status"]
-          storage_path: string
-          user_id: string
+          key: string
+          organization_id?: string | null
+          scope: Database["public"]["Enums"]["setting_scope"]
+          updated_at?: string
+          user_id?: string | null
+          value?: Json
+          workspace_id?: string | null
         }
         Update: {
           created_at?: string
-          extracted_text?: string | null
-          file_name?: string
-          file_size?: number
+          created_by?: string | null
           id?: string
-          mime_type?: string | null
+          key?: string
+          organization_id?: string | null
+          scope?: Database["public"]["Enums"]["setting_scope"]
+          updated_at?: string
+          user_id?: string | null
+          value?: Json
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tool_invocations: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          input: Json
+          latency_ms: number
+          message_id: string | null
+          organization_id: string
+          output: Json
+          status: string
+          tool_name: string
+          user_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          input?: Json
+          latency_ms?: number
+          message_id?: string | null
+          organization_id: string
+          output?: Json
+          status?: string
+          tool_name: string
+          user_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          input?: Json
+          latency_ms?: number
+          message_id?: string | null
+          organization_id?: string
+          output?: Json
+          status?: string
+          tool_name?: string
+          user_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_invocations_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tool_invocations_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tool_invocations_workspace_id_organization_id_fkey"
+            columns: ["workspace_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      uploads: {
+        Row: {
+          bucket_id: string
+          created_at: string
+          embedding: string | null
+          extracted_text: string | null
+          id: string
+          metadata: Json
+          mime: string
+          name: string
+          organization_id: string
+          size_bytes: number
+          status: Database["public"]["Enums"]["upload_status"]
+          storage_path: string
+          summary: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          bucket_id: string
+          created_at?: string
+          embedding?: string | null
+          extracted_text?: string | null
+          id?: string
+          metadata?: Json
+          mime: string
+          name: string
+          organization_id: string
+          size_bytes?: number
+          status?: Database["public"]["Enums"]["upload_status"]
+          storage_path: string
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          bucket_id?: string
+          created_at?: string
+          embedding?: string | null
+          extracted_text?: string | null
+          id?: string
+          metadata?: Json
+          mime?: string
+          name?: string
+          organization_id?: string
+          size_bytes?: number
           status?: Database["public"]["Enums"]["upload_status"]
           storage_path?: string
+          summary?: string | null
+          updated_at?: string
           user_id?: string
+          workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "uploads_workspace_id_organization_id_fkey"
+            columns: ["workspace_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
       }
       user_memory: {
         Row: {
@@ -494,6 +856,129 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      workflow_runs: {
+        Row: {
+          completed_at: string | null
+          conversation_id: string | null
+          error: string | null
+          id: string
+          input: Json
+          metadata: Json
+          organization_id: string
+          output: Json
+          started_at: string
+          started_by: string | null
+          status: Database["public"]["Enums"]["workflow_run_status"]
+          workflow_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          conversation_id?: string | null
+          error?: string | null
+          id?: string
+          input?: Json
+          metadata?: Json
+          organization_id: string
+          output?: Json
+          started_at?: string
+          started_by?: string | null
+          status?: Database["public"]["Enums"]["workflow_run_status"]
+          workflow_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          conversation_id?: string | null
+          error?: string | null
+          id?: string
+          input?: Json
+          metadata?: Json
+          organization_id?: string
+          output?: Json
+          started_at?: string
+          started_by?: string | null
+          status?: Database["public"]["Enums"]["workflow_run_status"]
+          workflow_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_runs_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_runs_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_runs_workspace_id_organization_id_fkey"
+            columns: ["workspace_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      workflows: {
+        Row: {
+          created_at: string
+          created_by: string
+          definition: Json
+          description: string | null
+          id: string
+          metadata: Json
+          name: string
+          organization_id: string
+          status: Database["public"]["Enums"]["workflow_status"]
+          trigger_config: Json
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          definition?: Json
+          description?: string | null
+          id?: string
+          metadata?: Json
+          name: string
+          organization_id: string
+          status?: Database["public"]["Enums"]["workflow_status"]
+          trigger_config?: Json
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          definition?: Json
+          description?: string | null
+          id?: string
+          metadata?: Json
+          name?: string
+          organization_id?: string
+          status?: Database["public"]["Enums"]["workflow_status"]
+          trigger_config?: Json
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflows_workspace_id_organization_id_fkey"
+            columns: ["workspace_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
       }
       workspace_members: {
         Row: {
@@ -589,13 +1074,44 @@ export type Database = {
         }
         Returns: boolean
       }
+      match_memories: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          p_organization_id?: string
+          p_workspace_id?: string
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          created_at: string
+          id: string
+          importance: number
+          kind: string
+          metadata: Json
+          organization_id: string
+          similarity: number
+          tags: string[]
+          user_id: string
+          workspace_id: string
+        }[]
+      }
     }
     Enums: {
       ai_mode: "general" | "medical"
       app_role: "admin" | "member"
       message_role: "user" | "assistant" | "system"
       organization_role: "owner" | "admin" | "member" | "viewer"
-      upload_status: "uploading" | "processing" | "ready" | "failed"
+      profile_role: "user" | "admin" | "clinician" | "platform_admin"
+      setting_scope: "user" | "organization" | "workspace"
+      upload_status: "uploaded" | "processing" | "ready" | "failed" | "archived"
+      workflow_run_status:
+        | "queued"
+        | "running"
+        | "succeeded"
+        | "failed"
+        | "cancelled"
+      workflow_status: "draft" | "active" | "paused" | "archived"
       workspace_role: "owner" | "admin" | "editor" | "viewer"
     }
     CompositeTypes: {
@@ -728,7 +1244,17 @@ export const Constants = {
       app_role: ["admin", "member"],
       message_role: ["user", "assistant", "system"],
       organization_role: ["owner", "admin", "member", "viewer"],
-      upload_status: ["uploading", "processing", "ready", "failed"],
+      profile_role: ["user", "admin", "clinician", "platform_admin"],
+      setting_scope: ["user", "organization", "workspace"],
+      upload_status: ["uploaded", "processing", "ready", "failed", "archived"],
+      workflow_run_status: [
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled",
+      ],
+      workflow_status: ["draft", "active", "paused", "archived"],
       workspace_role: ["owner", "admin", "editor", "viewer"],
     },
   },
