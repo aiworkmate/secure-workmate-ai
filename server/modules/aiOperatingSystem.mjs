@@ -18,48 +18,58 @@ const ROUTE_RULES = [
 export function classifyOperatingRequest({ text, route, mode }) {
   const clean = sanitizeText(text, 12_000);
   const matches = ROUTE_RULES.filter(([, pattern]) => pattern.test(clean)).map(([type]) => type);
+  const routePrimary = route?.intent || route?.requestType || '';
   const primary = mode === 'medical' || route?.needsMedical
     ? 'medical_assist'
-    : matches[0] || (clean.length < 80 ? 'casual_conversation' : 'general_analysis');
-  const needsClarification = /\b(it|that|this|they|them)\b/i.test(clean) && clean.length < 36;
-  const needsDeepReasoning = /\b(strategy|architecture|roadmap|diagnose|compare|decision|tradeoff|root cause|plan)\b/i.test(clean);
+    : routePrimary || matches[0] || (clean.length < 80 ? 'casual_conversation' : 'general_analysis');
+  const needsClarification = Boolean(route?.needsClarification) || (/\b(it|that|this|they|them)\b/i.test(clean) && clean.length < 36);
+  const needsDeepReasoning = route?.complexity === 'deep' || /\b(strategy|architecture|roadmap|diagnose|compare|decision|tradeoff|root cause|plan)\b/i.test(clean);
   return {
     primary,
-    tags: [...new Set(matches.length ? matches : [primary])],
-    confidence: matches.length ? Math.min(0.95, 0.62 + matches.length * 0.08) : 0.52,
+    tags: [...new Set([...(route?.candidateIntents || []).map((item) => item.type), ...(matches.length ? matches : [primary])])],
+    confidence: Number(route?.confidence || (matches.length ? Math.min(0.95, 0.62 + matches.length * 0.08) : 0.52)),
     needsClarification,
     needsDeepReasoning,
-    needsLiveData: Boolean(route?.needsWeb || matches.includes('live_information')),
+    needsLiveData: Boolean(route?.needsFreshness || route?.needsWeb || matches.includes('live_information')),
     needsMemory: Boolean(route?.needsMemory),
-    needsFiles: Boolean(route?.needsFiles)
+    needsFiles: Boolean(route?.needsFiles),
+    needsVerification: Boolean(route?.needsVerification)
   };
 }
 
 export function assembleOperatingContext({ db, user, text, route, mode, memories, tools, uploads, livePulse }) {
+  ensureOperatingCollections(db);
   const classification = classifyOperatingRequest({ text, route, mode });
   const projects = activeForUser(db.projects, user.id, 5);
   const goals = activeForUser(db.goals, user.id, 5);
   const tasks = activeForUser(db.tasks, user.id, 8);
+  const decisions = activeForUser(db.decisions, user.id, 5);
   const summaries = activeForUser(db.conversationSummaries, user.id, 3);
+  const continuity = buildContinuityDigest(db, user.id);
   const livePulseSummary = summarizeLivePulse(livePulse);
-  const health = estimateContextHealth({ db, user, memories, tools, uploads, classification, livePulse });
+  const health = estimateContextHealth({ db, user, memories, tools, uploads, classification, livePulse, route });
   const block = [
     'AI operating system context:',
     `- Request type: ${classification.primary}`,
     `- Request confidence: ${classification.confidence.toFixed(2)}`,
+    `- Candidate intents: ${classification.tags.slice(0, 5).join(', ') || 'none'}`,
+    `- Complexity: ${route?.complexity || 'unknown'}`,
     `- Deep reasoning: ${classification.needsDeepReasoning ? 'yes' : 'no'}`,
     `- Clarification useful: ${classification.needsClarification ? 'yes' : 'no'}`,
+    `- Verification needed: ${classification.needsVerification ? 'yes' : 'no'}`,
     `- Context pressure: ${health.contextPressure}/100`,
     `- Live pulse: ${livePulseSummary.providerCount} free providers checked, ${livePulseSummary.externalProviderCount} external providers with usable items, at ${livePulseSummary.at || 'unavailable'}`,
     renderList('Active projects', projects, (item) => `${item.title}: ${item.summary || item.status || 'active'}`),
     renderList('Active goals', goals, (item) => `${item.title}: ${item.summary || item.status || 'active'}`),
     renderList('Open tasks', tasks, (item) => `${item.title}: ${item.priority || 'normal'} / ${item.status || 'active'}`),
-    renderList('Conversation summaries', summaries, (item) => item.summary || item.content || item.title)
+    renderList('Recent decisions', decisions, (item) => `${item.title}: ${item.summary || item.status || 'active'}`),
+    renderList('Conversation summaries', summaries, (item) => item.summary || item.content || item.title),
+    continuity ? `Continuity digest:\n${continuity}` : ''
   ].filter(Boolean).join('\n');
-  return { classification, health, livePulse: livePulseSummary, block: clampText(block, 5000) };
+  return { classification, health, livePulse: livePulseSummary, continuity, block: clampText(block, 6500) };
 }
 
-export async function recordOperatingOutcome(store, { user, text, answer, conversation, route, operatingContext, livePulse }) {
+export async function recordOperatingOutcome(store, { user, text, answer, conversation, route, operatingContext, livePulse, answerQuality }) {
   const now = nowISO();
   const signals = extractWorkspaceSignals(text, answer);
   const livePulseSummary = summarizeLivePulse(livePulse);
@@ -73,6 +83,7 @@ export async function recordOperatingOutcome(store, { user, text, answer, conver
       route,
       contextHealth: operatingContext.health,
       livePulse: livePulseSummary,
+      answerQuality: answerQuality || null,
       signalCounts: {
         projects: signals.projects.length,
         goals: signals.goals.length,
@@ -81,7 +92,8 @@ export async function recordOperatingOutcome(store, { user, text, answer, conver
       },
       createdAt: now
     });
-    upsertConversationSummary(db, { user, conversation, text, answer, now });
+    trimOperatingEvents(db, user.id);
+    upsertConversationSummary(db, { user, conversation, text, answer, route, answerQuality, now });
     for (const project of signals.projects) upsertSignal(db.projects, user.id, project, now, 'project');
     for (const goal of signals.goals) upsertSignal(db.goals, user.id, goal, now, 'goal');
     for (const task of signals.tasks) upsertSignal(db.tasks, user.id, task, now, 'task');
@@ -102,23 +114,26 @@ function activeForUser(items = [], userId, limit) {
     .slice(0, limit);
 }
 
-function estimateContextHealth({ db, user, memories, tools, uploads, classification, livePulse }) {
+function estimateContextHealth({ db, user, memories, tools, uploads, classification, livePulse, route }) {
   const livePulseSummary = summarizeLivePulse(livePulse);
   const messageCount = (db.messages || []).filter((item) => item.userId === user.id).length;
   const memoryCount = memories.length;
   const toolCount = tools.length;
   const uploadCount = uploads.length;
-  const contextPressure = Math.min(100, Math.round(messageCount / 8 + memoryCount * 5 + uploadCount * 7 + toolCount * 4));
+  const routeComplexity = route?.complexity === 'deep' ? 12 : route?.complexity === 'reasoned' ? 7 : 2;
+  const contextPressure = Math.min(100, Math.round(messageCount / 8 + memoryCount * 5 + uploadCount * 7 + toolCount * 4 + routeComplexity));
   return {
     messageCount,
     memoryCount,
     toolCount,
     uploadCount,
+    routeComplexity: route?.complexity || 'unknown',
     livePulseProviderCount: livePulseSummary.providerCount,
     livePulseExternalProviderCount: livePulseSummary.externalProviderCount,
     livePulseLatencyMs: livePulseSummary.latencyMs,
     contextPressure,
     liveDataMissing: classification.needsLiveData && toolCount === 0 && livePulseSummary.externalProviderCount === 0,
+    memorySparse: classification.needsMemory && memoryCount === 0,
     fallbackRisk: contextPressure > 80 ? 'high' : contextPressure > 55 ? 'medium' : 'low'
   };
 }
@@ -149,6 +164,24 @@ function summarizeLivePulse(livePulse) {
   };
 }
 
+function buildContinuityDigest(db, userId) {
+  const recentMessages = (db.messages || [])
+    .filter((item) => item.userId === userId)
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    .slice(0, 8)
+    .reverse();
+  if (!recentMessages.length) return '';
+
+  const userNeeds = recentMessages
+    .filter((item) => item.role === 'user')
+    .map((item) => `- User: ${clampText(item.content, 220)}`);
+  const assistantOutcomes = recentMessages
+    .filter((item) => item.role === 'assistant')
+    .slice(-3)
+    .map((item) => `- Assistant outcome: ${clampText(item.content, 220)}`);
+  return clampText([...userNeeds, ...assistantOutcomes].join('\n'), 1800);
+}
+
 function renderList(title, items, mapper) {
   if (!items.length) return '';
   return `${title}:\n${items.map((item) => `- ${clampText(mapper(item), 240)}`).join('\n')}`;
@@ -157,17 +190,17 @@ function renderList(title, items, mapper) {
 function extractWorkspaceSignals(text, answer) {
   const joined = `${text}\n${answer}`;
   return {
-    projects: extractMatches(joined, /(?:project|initiative|build|launch)[:\- ]+([^\n.]{4,140})/gi),
-    goals: extractMatches(joined, /(?:goal|objective|target)[:\- ]+([^\n.]{4,140})/gi),
-    tasks: extractMatches(joined, /(?:task|todo|next step|action)[:\- ]+([^\n.]{4,140})/gi),
-    decisions: extractMatches(joined, /(?:decision|decided|we will|we should)[:\- ]+([^\n.]{4,180})/gi)
+    projects: extractMatches(joined, /(?:project|initiative|build|launch)[:\- ]+([^\n.]{4,160})/gi),
+    goals: extractMatches(joined, /(?:goal|objective|target|north star)[:\- ]+([^\n.]{4,160})/gi),
+    tasks: extractMatches(joined, /(?:task|todo|next step|action)[:\- ]+([^\n.]{4,160})/gi),
+    decisions: extractMatches(joined, /(?:decision|decided|we will|we should|recommendation)[:\- ]+([^\n.]{4,200})/gi)
   };
 }
 
 function extractMatches(text, pattern) {
   const results = [];
   for (const match of text.matchAll(pattern)) {
-    const title = sanitizeText(match[1], 180).replace(/^to\s+/i, '');
+    const title = sanitizeText(match[1], 200).replace(/^to\s+/i, '');
     if (title && !results.some((item) => item.title.toLowerCase() === title.toLowerCase())) {
       results.push({ title, summary: title, status: 'active', priority: /urgent|blocker|critical/i.test(title) ? 'high' : 'normal' });
     }
@@ -197,11 +230,20 @@ function upsertSignal(collection, userId, signal, now, prefix) {
   });
 }
 
-function upsertConversationSummary(db, { user, conversation, text, answer, now }) {
-  const summary = clampText(`Latest user need: ${text}\nLatest assistant outcome: ${answer}`, 1800);
+function upsertConversationSummary(db, { user, conversation, text, answer, route, answerQuality, now }) {
   const existing = db.conversationSummaries.find((item) => item.userId === user.id && item.conversationId === conversation.id);
+  const previous = existing?.summary ? `${existing.summary}\n` : '';
+  const latest = [
+    `Latest user need: ${clampText(text, 600)}`,
+    `Latest assistant outcome: ${clampText(answer, 700)}`,
+    `Route: ${route?.intent || route?.requestType || 'unknown'} / ${route?.complexity || 'unknown'}`,
+    answerQuality ? `Quality score: ${answerQuality.score}; issues: ${(answerQuality.issues || []).join(', ') || 'none'}` : ''
+  ].filter(Boolean).join('\n');
+  const summary = clampText(`${previous}${latest}`, 2200);
+
   if (existing) {
     existing.summary = summary;
+    existing.messageCount = Number(existing.messageCount || 0) + 2;
     existing.updatedAt = now;
     return;
   }
@@ -215,4 +257,14 @@ function upsertConversationSummary(db, { user, conversation, text, answer, now }
     createdAt: now,
     updatedAt: now
   });
+}
+
+function trimOperatingEvents(db, userId) {
+  const events = db.aiOperatingEvents.filter((item) => item.userId === userId);
+  if (events.length <= 500) return;
+  const keepIds = new Set(events
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    .slice(0, 500)
+    .map((item) => item.id));
+  db.aiOperatingEvents = db.aiOperatingEvents.filter((item) => item.userId !== userId || keepIds.has(item.id));
 }
