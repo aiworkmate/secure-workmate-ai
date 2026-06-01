@@ -406,36 +406,56 @@ function ChatPage() {
     setMobileDrawerOpen(false);
   }
 
+  const sidebarBody = (
+    <>
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <span className="font-display text-sm font-semibold">Conversations</span>
+        <button onClick={createConversation} className="grid h-7 w-7 place-items-center rounded-md border border-border bg-surface hover:bg-accent" title="New chat">
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto scrollbar-thin p-2">
+        {conversationsQ.isLoading ? (
+          <ConversationSkeletons />
+        ) : conversations.length === 0 ? (
+          <div className="px-3 py-8 text-center text-xs text-muted-foreground">No conversations yet.</div>
+        ) : (
+          conversations.map((c) => (
+            <ConversationItem
+              key={c.id}
+              id={c.id}
+              title={c.title}
+              active={activeId === c.id}
+              onSelect={() => selectConversation(c.id)}
+              onRename={(t) => renameConversation(c.id, t)}
+              onDelete={() => deleteConversation(c.id)}
+            />
+          ))
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-full">
-      {/* Conversation list */}
+      {/* Conversation list — desktop */}
       <aside className="hidden w-72 shrink-0 flex-col border-r border-border bg-surface/30 lg:flex">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="font-display text-sm font-semibold">Conversations</span>
-          <button onClick={createConversation} className="grid h-7 w-7 place-items-center rounded-md border border-border bg-surface hover:bg-accent" title="New chat">
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto scrollbar-thin p-2">
-          {conversationsQ.isLoading ? (
-            <ConversationSkeletons />
-          ) : conversations.length === 0 ? (
-            <div className="px-3 py-8 text-center text-xs text-muted-foreground">No conversations yet.</div>
-          ) : (
-            conversations.map((c) => (
-              <ConversationItem
-                key={c.id}
-                id={c.id}
-                title={c.title}
-                active={activeId === c.id}
-                onSelect={() => setActiveId(c.id)}
-                onRename={(t) => renameConversation(c.id, t)}
-                onDelete={() => deleteConversation(c.id)}
-              />
-            ))
-          )}
-        </div>
+        {sidebarBody}
       </aside>
+
+      {/* Conversation list — mobile drawer */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-40 flex lg:hidden" role="dialog" aria-modal="true">
+          <button
+            aria-label="Close conversations"
+            className="absolute inset-0 bg-background/70 backdrop-blur-sm"
+            onClick={() => setMobileDrawerOpen(false)}
+          />
+          <aside className="relative z-10 flex h-full w-72 max-w-[85vw] flex-col border-r border-border bg-surface shadow-elevated animate-in slide-in-from-left">
+            {sidebarBody}
+          </aside>
+        </div>
+      )}
 
       {/* Thread */}
       <section className="flex min-w-0 flex-1 flex-col">
@@ -443,7 +463,9 @@ function ChatPage() {
           title={activeConv?.title ?? "New conversation"}
           canRename={!!activeConv}
           onRename={(t) => activeConv && renameConversation(activeConv.id, t)}
+          onOpenDrawer={() => setMobileDrawerOpen(true)}
         />
+
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin">
           {messagesLoading ? (
