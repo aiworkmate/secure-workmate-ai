@@ -522,7 +522,7 @@ function ChatPage() {
         </div>
 
         <div className="border-t border-border bg-background/60 p-4 backdrop-blur">
-          <Composer isStreaming={isStreaming} onSend={sendMessage} />
+          <Composer isStreaming={isStreaming} onSend={sendMessage} onStop={stopStream} />
           <p className="mx-auto mt-2 max-w-3xl text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
             Responses are final outputs only. Tool traces are not displayed.
           </p>
