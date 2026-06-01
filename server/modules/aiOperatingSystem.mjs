@@ -35,13 +35,14 @@ export function classifyOperatingRequest({ text, route, mode }) {
   };
 }
 
-export function assembleOperatingContext({ db, user, text, route, mode, memories, tools, uploads }) {
+export function assembleOperatingContext({ db, user, text, route, mode, memories, tools, uploads, livePulse }) {
   const classification = classifyOperatingRequest({ text, route, mode });
   const projects = activeForUser(db.projects, user.id, 5);
   const goals = activeForUser(db.goals, user.id, 5);
   const tasks = activeForUser(db.tasks, user.id, 8);
   const summaries = activeForUser(db.conversationSummaries, user.id, 3);
-  const health = estimateContextHealth({ db, user, memories, tools, uploads, classification });
+  const livePulseSummary = summarizeLivePulse(livePulse);
+  const health = estimateContextHealth({ db, user, memories, tools, uploads, classification, livePulse });
   const block = [
     'AI operating system context:',
     `- Request type: ${classification.primary}`,
@@ -49,17 +50,19 @@ export function assembleOperatingContext({ db, user, text, route, mode, memories
     `- Deep reasoning: ${classification.needsDeepReasoning ? 'yes' : 'no'}`,
     `- Clarification useful: ${classification.needsClarification ? 'yes' : 'no'}`,
     `- Context pressure: ${health.contextPressure}/100`,
+    `- Live pulse: ${livePulseSummary.providerCount} free providers checked, ${livePulseSummary.externalProviderCount} external providers with usable items, at ${livePulseSummary.at || 'unavailable'}`,
     renderList('Active projects', projects, (item) => `${item.title}: ${item.summary || item.status || 'active'}`),
     renderList('Active goals', goals, (item) => `${item.title}: ${item.summary || item.status || 'active'}`),
     renderList('Open tasks', tasks, (item) => `${item.title}: ${item.priority || 'normal'} / ${item.status || 'active'}`),
     renderList('Conversation summaries', summaries, (item) => item.summary || item.content || item.title)
   ].filter(Boolean).join('\n');
-  return { classification, health, block: clampText(block, 5000) };
+  return { classification, health, livePulse: livePulseSummary, block: clampText(block, 5000) };
 }
 
-export async function recordOperatingOutcome(store, { user, text, answer, conversation, route, operatingContext }) {
+export async function recordOperatingOutcome(store, { user, text, answer, conversation, route, operatingContext, livePulse }) {
   const now = nowISO();
   const signals = extractWorkspaceSignals(text, answer);
+  const livePulseSummary = summarizeLivePulse(livePulse);
   await store.update((db) => {
     ensureOperatingCollections(db);
     db.aiOperatingEvents.push({
@@ -69,6 +72,7 @@ export async function recordOperatingOutcome(store, { user, text, answer, conver
       requestType: operatingContext.classification.primary,
       route,
       contextHealth: operatingContext.health,
+      livePulse: livePulseSummary,
       signalCounts: {
         projects: signals.projects.length,
         goals: signals.goals.length,
@@ -98,7 +102,8 @@ function activeForUser(items = [], userId, limit) {
     .slice(0, limit);
 }
 
-function estimateContextHealth({ db, user, memories, tools, uploads, classification }) {
+function estimateContextHealth({ db, user, memories, tools, uploads, classification, livePulse }) {
+  const livePulseSummary = summarizeLivePulse(livePulse);
   const messageCount = (db.messages || []).filter((item) => item.userId === user.id).length;
   const memoryCount = memories.length;
   const toolCount = tools.length;
@@ -109,9 +114,38 @@ function estimateContextHealth({ db, user, memories, tools, uploads, classificat
     memoryCount,
     toolCount,
     uploadCount,
+    livePulseProviderCount: livePulseSummary.providerCount,
+    livePulseExternalProviderCount: livePulseSummary.externalProviderCount,
+    livePulseLatencyMs: livePulseSummary.latencyMs,
     contextPressure,
-    liveDataMissing: classification.needsLiveData && toolCount === 0,
+    liveDataMissing: classification.needsLiveData && toolCount === 0 && livePulseSummary.externalProviderCount === 0,
     fallbackRisk: contextPressure > 80 ? 'high' : contextPressure > 55 ? 'medium' : 'low'
+  };
+}
+
+function summarizeLivePulse(livePulse) {
+  const sources = Array.isArray(livePulse?.sources) ? livePulse.sources : [];
+  const providers = sources.map((source) => source.provider).filter(Boolean);
+  const failedProviders = sources
+    .filter((source) => source.provider !== 'clock' && !source.ok)
+    .map((source) => source.provider)
+    .filter(Boolean);
+  const externalProviderCount = sources.filter((source) => {
+    return source.provider !== 'clock' && source.ok && Array.isArray(source.items) && source.items.length > 0;
+  }).length;
+
+  return {
+    ok: Boolean(livePulse?.ok),
+    free: Boolean(livePulse?.free),
+    alwaysOn: Boolean(livePulse?.alwaysOn),
+    at: livePulse?.at || '',
+    query: livePulse?.query || '',
+    cached: Boolean(livePulse?.cached),
+    latencyMs: Number(livePulse?.latencyMs || 0),
+    providerCount: sources.length,
+    externalProviderCount,
+    providers,
+    failedProviders
   };
 }
 
