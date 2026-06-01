@@ -15,7 +15,7 @@ interface ComposerProps {
  * Chat composer with drag/drop attachment support. Storage is delegated to
  * `services/attachments` — this component only manages local UI state.
  */
-export function Composer({ disabled, isStreaming, onSend }: ComposerProps) {
+export function Composer({ disabled, isStreaming, onSend, onStop }: ComposerProps) {
   const [text, setText] = useState("");
   const [pending, setPending] = useState<PendingAttachment[]>([]);
   const [dragOver, setDragOver] = useState(false);
