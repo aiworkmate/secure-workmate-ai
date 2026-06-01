@@ -168,49 +168,67 @@ export type Database = {
       memories: {
         Row: {
           archived: boolean
+          category: string
+          confidence: number
           content: string
           created_at: string
           embedding: string | null
+          frequency: number
           id: string
           importance: number
           kind: string
+          last_used_at: string
           metadata: Json
           organization_id: string
+          pinned: boolean
           source_message_id: string | null
           tags: string[]
           updated_at: string
+          usefulness: number
           user_id: string
           workspace_id: string | null
         }
         Insert: {
           archived?: boolean
+          category?: string
+          confidence?: number
           content: string
           created_at?: string
           embedding?: string | null
+          frequency?: number
           id?: string
           importance?: number
           kind?: string
+          last_used_at?: string
           metadata?: Json
           organization_id: string
+          pinned?: boolean
           source_message_id?: string | null
           tags?: string[]
           updated_at?: string
+          usefulness?: number
           user_id: string
           workspace_id?: string | null
         }
         Update: {
           archived?: boolean
+          category?: string
+          confidence?: number
           content?: string
           created_at?: string
           embedding?: string | null
+          frequency?: number
           id?: string
           importance?: number
           kind?: string
+          last_used_at?: string
           metadata?: Json
           organization_id?: string
+          pinned?: boolean
           source_message_id?: string | null
           tags?: string[]
           updated_at?: string
+          usefulness?: number
           user_id?: string
           workspace_id?: string | null
         }
@@ -230,6 +248,42 @@ export type Database = {
             referencedColumns: ["id", "organization_id"]
           },
         ]
+      }
+      memory_feedback: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          helpful: boolean
+          id: string
+          impact: number
+          memory_ids: string[]
+          message_id: string | null
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          helpful: boolean
+          id?: string
+          impact?: number
+          memory_ids?: string[]
+          message_id?: string | null
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          helpful?: boolean
+          id?: string
+          impact?: number
+          memory_ids?: string[]
+          message_id?: string | null
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       message_citations: {
         Row: {
@@ -431,36 +485,42 @@ export type Database = {
           created_at: string
           default_organization_id: string | null
           default_workspace_id: string | null
+          display_name: string | null
           email: string
           full_name: string | null
           id: string
           role: Database["public"]["Enums"]["profile_role"]
           settings: Json
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           default_organization_id?: string | null
           default_workspace_id?: string | null
+          display_name?: string | null
           email: string
           full_name?: string | null
           id: string
           role?: Database["public"]["Enums"]["profile_role"]
           settings?: Json
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           default_organization_id?: string | null
           default_workspace_id?: string | null
+          display_name?: string | null
           email?: string
           full_name?: string | null
           id?: string
           role?: Database["public"]["Enums"]["profile_role"]
           settings?: Json
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -478,6 +538,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      response_outcomes: {
+        Row: {
+          chars: number
+          conversation_id: string
+          created_at: string
+          id: string
+          intent: string
+          latency_ms: number
+          live_used: boolean
+          memory_hits: number
+          user_id: string
+          was_fallback: boolean
+        }
+        Insert: {
+          chars?: number
+          conversation_id: string
+          created_at?: string
+          id?: string
+          intent: string
+          latency_ms?: number
+          live_used?: boolean
+          memory_hits?: number
+          user_id: string
+          was_fallback?: boolean
+        }
+        Update: {
+          chars?: number
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          intent?: string
+          latency_ms?: number
+          live_used?: boolean
+          memory_hits?: number
+          user_id?: string
+          was_fallback?: boolean
+        }
+        Relationships: []
+      }
+      routing_stats: {
+        Row: {
+          avg_latency_ms: number
+          created_at: string
+          failure_count: number
+          id: string
+          intent: string
+          last_used_at: string
+          live_used: boolean
+          success_count: number
+          user_id: string
+        }
+        Insert: {
+          avg_latency_ms?: number
+          created_at?: string
+          failure_count?: number
+          id?: string
+          intent: string
+          last_used_at?: string
+          live_used?: boolean
+          success_count?: number
+          user_id: string
+        }
+        Update: {
+          avg_latency_ms?: number
+          created_at?: string
+          failure_count?: number
+          id?: string
+          intent?: string
+          last_used_at?: string
+          live_used?: boolean
+          success_count?: number
+          user_id?: string
+        }
+        Relationships: []
       }
       settings: {
         Row: {
@@ -667,6 +802,60 @@ export type Database = {
             referencedColumns: ["id", "organization_id"]
           },
         ]
+      }
+      user_memory: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          source_conversation_id: string | null
+          updated_at: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          kind?: string
+          source_conversation_id?: string | null
+          updated_at?: string
+          user_id: string
+          weight?: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          source_conversation_id?: string | null
+          updated_at?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
       }
       workflow_runs: {
         Row: {
@@ -878,6 +1067,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       match_memories: {
         Args: {
           match_count?: number
@@ -903,6 +1099,7 @@ export type Database = {
     }
     Enums: {
       ai_mode: "general" | "medical"
+      app_role: "admin" | "member"
       message_role: "user" | "assistant" | "system"
       organization_role: "owner" | "admin" | "member" | "viewer"
       profile_role: "user" | "admin" | "clinician" | "platform_admin"
@@ -1044,6 +1241,7 @@ export const Constants = {
   public: {
     Enums: {
       ai_mode: ["general", "medical"],
+      app_role: ["admin", "member"],
       message_role: ["user", "assistant", "system"],
       organization_role: ["owner", "admin", "member", "viewer"],
       profile_role: ["user", "admin", "clinician", "platform_admin"],
