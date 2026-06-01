@@ -29,6 +29,12 @@ import { liveDataCache } from "@/lib/chat/cache.server";
 import { safe, metrics } from "@/lib/chat/safe.server";
 import { requestChatCompletion } from "@/lib/chat/model.server";
 import { getAiControlForUser, type AiControlSettings } from "@/lib/admin/ai-control.server";
+import {
+  loadConversationSummary,
+  trimHistoryWithSummary,
+  formatSummaryForPrompt,
+  maybeRefreshSummary,
+} from "@/lib/chat/summarizer.server";
 
 const Body = z.object({
   conversationId: z.string().uuid(),
