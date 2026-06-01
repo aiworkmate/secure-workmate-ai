@@ -495,23 +495,25 @@ function ChatPage() {
         />
 
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin">
+        <div ref={scrollRef} className="relative flex-1 overflow-y-auto scrollbar-thin">
           {messagesLoading ? (
-            <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
+            <div className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:px-6">
               <MessageSkeleton />
               <MessageSkeleton align="right" />
               <MessageSkeleton />
             </div>
           ) : messages.length === 0 && !isStreaming ? (
-            <div className="grid h-full place-items-center p-8">
-              <EmptyState
-                icon={MessageSquare}
-                title="Start a secure conversation"
-                description="Ask anything. The orchestrator handles memory, tool calls, and policy on the server."
-              />
-            </div>
+            <>
+              <div className="pointer-events-none absolute inset-0 bg-mesh opacity-60" aria-hidden />
+              <div className="relative h-full">
+                <ChatWelcome
+                  name={profile?.display_name || undefined}
+                  onPick={(prompt) => sendMessage(prompt, [])}
+                />
+              </div>
+            </>
           ) : (
-            <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
+            <div className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:px-6">
               {messages.map((m) => {
                 const meta = responseMeta[m.id];
                 return (
@@ -543,18 +545,17 @@ function ChatPage() {
                   }
                 />
               )}
-
-
             </div>
           )}
         </div>
 
-        <div className="border-t border-border bg-background/60 p-4 backdrop-blur">
+        <div className="glass-strong border-t border-border px-3 pb-safe pt-3 sm:px-4 sm:pt-4">
           <Composer isStreaming={isStreaming} onSend={sendMessage} onStop={stopStream} />
-          <p className="mx-auto mt-2 max-w-3xl text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-            Responses are final outputs only. Tool traces are not displayed.
+          <p className="mx-auto mt-2 max-w-3xl text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
+            AI WorkMate can make mistakes. Verify important information.
           </p>
         </div>
+
       </section>
     </div>
   );
