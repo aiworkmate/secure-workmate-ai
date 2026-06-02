@@ -285,8 +285,8 @@ export const Route = createFileRoute("/api/chat")({
                   user_id: userId,
                   role: "user",
                   content: userContent,
-                  workspace_id: conv.workspace_id,
-                  organization_id: conv.organization_id,
+                  workspace_id: conv.workspace_id as string,
+                  organization_id: conv.organization_id as string,
                 });
                 if (isNewConv) {
                   await sb.from("conversations").update({ title: userContent.slice(0, 60).trim() }).eq("id", conv.id);

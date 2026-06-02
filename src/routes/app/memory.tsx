@@ -35,7 +35,7 @@ function MemoryPage() {
 
   async function addMemory() {
     if (!draft.trim() || !user) return;
-    const { error } = await supabase.from("memories").insert({ user_id: user.id, content: draft.trim(), category: "general" });
+    const { error } = await (supabase.from("memories") as unknown as { insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }> }).insert({ user_id: user.id, content: draft.trim(), category: "general" });
     if (error) { toast.error(error.message); return; }
     setDraft("");
     qc.invalidateQueries({ queryKey: ["memories"] });

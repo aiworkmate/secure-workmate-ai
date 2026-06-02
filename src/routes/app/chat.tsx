@@ -105,8 +105,8 @@ function ChatPage() {
 
   async function createConversation() {
     if (!user) return;
-    const { data, error } = await supabase
-      .from("conversations").insert({ user_id: user.id, title: "New conversation" })
+    const { data, error } = await (supabase.from("conversations") as unknown as { insert: (row: Record<string, unknown>) => { select: (s: string) => { single: () => Promise<{ data: { id: string; title: string; updated_at: string }; error: { message: string } | null }> } } })
+      .insert({ user_id: user.id, title: "New conversation" })
       .select("id, title, updated_at").single();
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["conversations"] });
@@ -151,8 +151,8 @@ function ChatPage() {
     if (!convId) {
       if (!user) return;
       const autoTitle = text ? text.slice(0, 60) : "New conversation";
-      const { data, error } = await supabase
-        .from("conversations").insert({ user_id: user.id, title: autoTitle })
+      const { data, error } = await (supabase.from("conversations") as unknown as { insert: (row: Record<string, unknown>) => { select: (s: string) => { single: () => Promise<{ data: { id: string }; error: { message: string } | null }> } } })
+        .insert({ user_id: user.id, title: autoTitle })
         .select("id").single();
       if (error) { toast.error(error.message); return; }
       convId = data.id;

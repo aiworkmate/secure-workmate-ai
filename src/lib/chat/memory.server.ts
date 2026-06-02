@@ -274,7 +274,7 @@ export async function storeMemory(
       return;
     }
 
-    await supabaseAdmin.from("memories").insert({
+    await (supabaseAdmin.from("memories") as unknown as { insert: (row: Record<string, unknown>) => Promise<unknown> }).insert({
       user_id: userId,
       content: trimmed,
       category,
