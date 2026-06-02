@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { FileText, Upload, Trash2, Search, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useTenant } from "@/lib/tenant";
 import { PageHeader, EmptyState, StatusPill } from "@/components/page-primitives";
 import { toast } from "sonner";
 
@@ -22,6 +23,7 @@ function fmtBytes(n: number) {
 
 function UploadsPage() {
   const { user } = useAuth();
+  const { organization, workspace } = useTenant();
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -41,6 +43,7 @@ function UploadsPage() {
 
   async function handleFiles(files: FileList | null) {
     if (!files || !user) return;
+    if (!organization || !workspace) { toast.error("Workspace not ready"); return; }
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
@@ -48,7 +51,8 @@ function UploadsPage() {
         const { error: upErr } = await supabase.storage.from("uploads").upload(path, file);
         if (upErr) { toast.error(`${file.name}: ${upErr.message}`); continue; }
         const { error: insErr } = await (supabase.from("uploads") as unknown as { insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }> }).insert({
-          user_id: user.id, name: file.name, size_bytes: file.size,
+          user_id: user.id, organization_id: organization.id, workspace_id: workspace.id,
+          name: file.name, size_bytes: file.size,
           mime: file.type || "application/octet-stream", storage_path: path, bucket_id: "uploads", status: "ready",
         });
         if (insErr) { toast.error(insErr.message); continue; }
