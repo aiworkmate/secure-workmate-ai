@@ -371,8 +371,8 @@ export const Route = createFileRoute("/api/chat")({
           const decoder = new TextDecoder();
           let assembled = "";
           const convId = conv.id;
-          const convWorkspaceId = conv.workspace_id;
-          const convOrganizationId = conv.organization_id;
+          const convWorkspaceId = conv.workspace_id as string;
+          const convOrganizationId = conv.organization_id as string;
           const memoryIds = memories.map((m) => m.id);
           let seq = 0;
           const send = (controller: ReadableStreamDefaultController, payload: Record<string, unknown>) => {
