@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Sparkles, ShieldCheck, Brain, Pencil, Check, X, Menu, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useTenant } from "@/lib/tenant";
 import { toast } from "sonner";
 import { Composer } from "@/components/chat/composer";
 import { MessageBubble, type ToolEvent } from "@/components/chat/message-bubble";
@@ -33,6 +34,7 @@ type StreamPhase = "idle" | "thinking" | "searching" | "generating" | "streaming
 
 function ChatPage() {
   const { user, session, profile } = useAuth();
+  const { organization, workspace } = useTenant();
   const qc = useQueryClient();
   const [convSearch, setConvSearch] = useState("");
 
@@ -105,8 +107,9 @@ function ChatPage() {
 
   async function createConversation() {
     if (!user) return;
+    if (!organization || !workspace) { toast.error("Workspace not ready"); return; }
     const { data, error } = await (supabase.from("conversations") as unknown as { insert: (row: Record<string, unknown>) => { select: (s: string) => { single: () => Promise<{ data: { id: string; title: string; updated_at: string }; error: { message: string } | null }> } } })
-      .insert({ user_id: user.id, title: "New conversation" })
+      .insert({ user_id: user.id, title: "New conversation", organization_id: organization.id, workspace_id: workspace.id })
       .select("id, title, updated_at").single();
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["conversations"] });
@@ -151,8 +154,9 @@ function ChatPage() {
     if (!convId) {
       if (!user) return;
       const autoTitle = text ? text.slice(0, 60) : "New conversation";
+      if (!organization || !workspace) { toast.error("Workspace not ready"); return; }
       const { data, error } = await (supabase.from("conversations") as unknown as { insert: (row: Record<string, unknown>) => { select: (s: string) => { single: () => Promise<{ data: { id: string }; error: { message: string } | null }> } } })
-        .insert({ user_id: user.id, title: autoTitle })
+        .insert({ user_id: user.id, title: autoTitle, organization_id: organization.id, workspace_id: workspace.id })
         .select("id").single();
       if (error) { toast.error(error.message); return; }
       convId = data.id;
