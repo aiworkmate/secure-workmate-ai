@@ -12,7 +12,7 @@ export const Route = createFileRoute("/app/uploads")({
   component: UploadsPage,
 });
 
-interface UploadRow { id: string; file_name: string; file_size: number; mime_type: string | null; status: string; created_at: string; storage_path: string }
+interface UploadRow { id: string; name: string; size_bytes: number; mime: string | null; status: string; created_at: string; storage_path: string }
 
 function fmtBytes(n: number) {
   if (n < 1024) return `${n} B`;
@@ -31,13 +31,13 @@ function UploadsPage() {
   const { data: uploads = [] } = useQuery<UploadRow[]>({
     queryKey: ["uploads", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("uploads").select("id, file_name, file_size, mime_type, status, created_at, storage_path").order("created_at", { ascending: false });
-      return (data ?? []) as UploadRow[];
+      const { data } = await supabase.from("uploads").select("id, name, size_bytes, mime, status, created_at, storage_path").order("created_at", { ascending: false });
+      return (data ?? []) as unknown as UploadRow[];
     },
     enabled: !!user,
   });
 
-  const filtered = uploads.filter((u) => !q || u.file_name.toLowerCase().includes(q.toLowerCase()));
+  const filtered = uploads.filter((u) => !q || u.name.toLowerCase().includes(q.toLowerCase()));
 
   async function handleFiles(files: FileList | null) {
     if (!files || !user) return;
@@ -47,9 +47,9 @@ function UploadsPage() {
         const path = `${user.id}/${Date.now()}-${file.name}`;
         const { error: upErr } = await supabase.storage.from("uploads").upload(path, file);
         if (upErr) { toast.error(`${file.name}: ${upErr.message}`); continue; }
-        const { error: insErr } = await supabase.from("uploads").insert({
-          user_id: user.id, file_name: file.name, file_size: file.size,
-          mime_type: file.type || null, storage_path: path, status: "ready",
+        const { error: insErr } = await (supabase.from("uploads") as unknown as { insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }> }).insert({
+          user_id: user.id, name: file.name, size_bytes: file.size,
+          mime: file.type || "application/octet-stream", storage_path: path, bucket_id: "uploads", status: "ready",
         });
         if (insErr) { toast.error(insErr.message); continue; }
       }
@@ -118,8 +118,8 @@ function UploadsPage() {
               <tbody className="divide-y divide-border">
                 {filtered.map((u) => (
                   <tr key={u.id} className="hover:bg-surface/40">
-                    <td className="px-4 py-3"><div className="flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" /><span className="truncate font-medium">{u.file_name}</span></div></td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{fmtBytes(u.file_size)}</td>
+                    <td className="px-4 py-3"><div className="flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" /><span className="truncate font-medium">{u.name}</span></div></td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{fmtBytes(u.size_bytes)}</td>
                     <td className="px-4 py-3"><StatusPill tone={u.status === "ready" ? "success" : u.status === "failed" ? "danger" : "warning"}>{u.status}</StatusPill></td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{new Date(u.created_at).toLocaleString()}</td>
                     <td className="px-4 py-3">
