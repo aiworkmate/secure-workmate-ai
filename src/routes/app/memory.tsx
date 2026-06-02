@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Brain, Pin, Search, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useTenant } from "@/lib/tenant";
 import { PageHeader, EmptyState, StatusPill } from "@/components/page-primitives";
 import { toast } from "sonner";
 
@@ -16,6 +17,7 @@ interface Memory { id: string; content: string; category: string; pinned: boolea
 
 function MemoryPage() {
   const { user } = useAuth();
+  const { organization, workspace } = useTenant();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [draft, setDraft] = useState("");
@@ -35,7 +37,8 @@ function MemoryPage() {
 
   async function addMemory() {
     if (!draft.trim() || !user) return;
-    const { error } = await (supabase.from("memories") as unknown as { insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }> }).insert({ user_id: user.id, content: draft.trim(), category: "general" });
+    if (!organization) { toast.error("Workspace not ready"); return; }
+    const { error } = await (supabase.from("memories") as unknown as { insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }> }).insert({ user_id: user.id, content: draft.trim(), category: "general", organization_id: organization.id, workspace_id: workspace?.id ?? null });
     if (error) { toast.error(error.message); return; }
     setDraft("");
     qc.invalidateQueries({ queryKey: ["memories"] });
